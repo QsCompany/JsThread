@@ -1,0 +1,25 @@
+{
+  "name": "jsthread",
+  "version": "1.0.0",
+  "description": "implement thread processing in web-app",
+  "main": "jsthread.js",
+  "scripts": {
+    "test": "http-server -i -g -e -s -o -c-1 -r "
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QsCompany/JsThread.git"
+  },
+  "keywords": [
+    "jsthread",
+    "Thread",
+    "QsCompany",
+    "QsDev"
+  ],
+  "author": "Achour Brahim",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/QsCompany/JsThread/issues"
+  },
+  "homepage": "https://github.com/QsCompany/JsThread#readme"
+}
