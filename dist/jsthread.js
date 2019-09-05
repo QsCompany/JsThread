@@ -1,13 +1,10 @@
-"use strict";
-var threading;
+export var threading;
 (function (threading) {
-    var _hostedThreads = {};
-    var _localeThread;
-    var hostedThread = /** @class */ (function () {
-        function hostedThread(name) {
+    const _hostedThreads = {};
+    let _localeThread;
+    class hostedThread {
+        constructor(name) {
             this.name = name;
-            this.localeWindow = void 0;
-            this.hostWindow = void 0;
             this.isExec = false;
             this.apiQuee = [];
             this.apiCallback = {};
@@ -15,13 +12,13 @@ var threading;
                 throw "the thread name is exist";
             _hostedThreads[name] = this;
         }
-        hostedThread.prototype.destroy = function () {
+        destroy() {
             this.localeWindow.removeEventListener('message', this);
             this.localeWindow.removeEventListener('messageerror', this);
             delete _hostedThreads[this.name];
             this.apiQuee.length = 0;
-        };
-        hostedThread.prototype.initialize = function (localeWindow, hostWindow) {
+        }
+        initialize(localeWindow, hostWindow) {
             if (this.localeWindow)
                 throw "is initialized";
             if (!localeWindow || !hostWindow)
@@ -32,50 +29,49 @@ var threading;
             localeWindow.addEventListener('messageerror', this);
             this.next();
             return this;
-        };
-        hostedThread.prototype.newID = function () {
-            var id = (hostedThread.num++).toString(36) + (Math.random() * Number.MAX_SAFE_INTEGER).toString(36);
+        }
+        newID() {
+            let id = (hostedThread.num++).toString(36) + (Math.random() * Number.MAX_SAFE_INTEGER).toString(36);
             if (id in this.apiCallback)
                 return this.newID();
             return id;
-        };
-        hostedThread.prototype.sendCommand = function (api, data, timeout) {
-            var _this = this;
-            if (timeout === void 0) { timeout = 1500; }
-            return new Promise(function (res, rej) {
-                var msg = {
-                    mid: _this.newID(),
-                    data: data, api: api, timeout: timeout,
+        }
+        sendCommand(api, data, timeout = 1500) {
+            return new Promise((res, rej) => {
+                const msg = {
+                    mid: this.newID(),
+                    data, api, timeout,
                 };
-                _this.apiCallback[msg.mid] = { res: res, rej: rej, msg: msg };
-                _this.apiQuee.push(msg);
-                if (!_this.isExec)
-                    _this.next();
+                this.apiCallback[msg.mid] = { res, rej, msg };
+                this.apiQuee.push(msg);
+                if (!this.isExec)
+                    this.next();
             });
-        };
-        hostedThread.prototype.msgCallback = function (e) {
+        }
+        msgCallback(e) {
             if (e.target !== window)
                 return;
             var msgResult = e.data;
             if (!msgResult.mid)
                 return;
-            var cur = this.apiCallback[msgResult.mid];
+            let cur = this.apiCallback[msgResult.mid];
             if (cur) {
                 delete this.apiCallback[msgResult.mid];
                 if (cur.msg && cur.msg.threadId)
                     clearTimeout(cur.msg.threadId);
+                //const data:interfaces.ifetchResult<any>={data:msgResult.}
                 if (msgResult.succ)
                     cur.res(msgResult.data);
                 else
                     cur.rej(msgResult.data);
             }
             this.next();
-        };
-        hostedThread.prototype.msgCallbackError = function (e) {
+        }
+        msgCallbackError(e) {
             alert('fatal error on crossdomain');
             console.log(e);
-            var msgResult = this.cur;
-            var cur = this.apiCallback[msgResult.mid];
+            const msgResult = this.cur;
+            let cur = this.apiCallback[msgResult.mid];
             if (cur) {
                 delete this.apiCallback[msgResult.mid];
                 if (cur.msg && cur.msg.threadId)
@@ -83,65 +79,60 @@ var threading;
                 cur.rej(msgResult.data);
             }
             this.next();
-        };
-        Object.defineProperty(hostedThread.prototype, "isInit", {
-            get: function () {
-                return this.localeWindow && this.hostWindow;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        hostedThread.prototype.next = function () {
+        }
+        get isInit() {
+            return this.localeWindow && this.hostWindow;
+        }
+        next() {
             if (!this.isInit)
                 return false;
             if (!this.apiQuee.length)
                 return this.cur = void 0, this.isExec = false;
             this.isExec = true;
-            var msg = this.cur = this.apiQuee.shift();
+            const msg = this.cur = this.apiQuee.shift();
             if (msg.timeout > 0)
                 msg.threadId = setTimeout(this.timeOut, msg.timeout, this, msg);
             this.hostWindow.postMessage(msg, "*");
             return true;
-        };
-        hostedThread.prototype.timeOut = function (self, msg) {
-            var c = self.apiCallback[msg.mid];
+        }
+        timeOut(self, msg) {
+            const c = self.apiCallback[msg.mid];
             if (!c)
                 return;
             delete self.apiCallback[msg.mid];
             c.rej('timeout');
             self.next();
-        };
-        hostedThread.prototype.handleEvent = function (e) {
+        }
+        handleEvent(e) {
             switch (e.type) {
                 case 'message':
                     return this.msgCallback(e);
                 case 'messageerror':
                     return this.msgCallbackError(e);
             }
-        };
-        hostedThread.num = 0;
-        return hostedThread;
-    }());
+        }
+    }
+    hostedThread.num = 0;
     threading.hostedThread = hostedThread;
     function createLocaleThread() {
-        var $window = window;
+        const $window = window;
         if (_localeThread)
             return _localeThread;
-        var apis = {
-            fetch: $fetch,
+        const apis = {
+            $fetch,
             default: $fetch,
-            $loaded: $loaded,
-            $script: $script
+            $loaded,
+            $script,
         };
-        var waitingLoading = [];
-        var loaded = false;
-        $window.addEventListener('load', function (e) {
+        const waitingLoading = [];
+        let loaded = false;
+        $window.addEventListener('load', (e) => {
             loaded = true;
-            var l;
+            let l;
             while (l = waitingLoading.shift())
                 process(l);
         });
-        $window.addEventListener('message', function (e) {
+        $window.addEventListener('message', e => {
             if (e.source == e.target)
                 return;
             if (!loaded)
@@ -154,7 +145,7 @@ var threading;
                 msg.api = 'default';
             if (!msg.mid)
                 return;
-            var api = apis[msg.api] || $noapi;
+            let api = apis[msg.api] || $noapi;
             api(msg, e, post);
         }
         function post(msg, e) {
@@ -168,29 +159,28 @@ var threading;
                 return data;
             }
         }
+        function getUrl(url) {
+            const u = new URL(url.url, url.origin || document.location.origin);
+            if (!url.params)
+                return u.toString();
+            for (const h in url.params)
+                u.searchParams.set(h, url.params[h]);
+            return u.toString();
+        }
         function $fetch(msg, e, post) {
-            var dt = msg.data;
-            http(dt.url, dt.method, dt.data, dt.headers)
-                .then(function (v) { return post({ data: v, succ: true, mid: msg.mid, api: msg.api }, e); })
-                .catch(function (v) { return post({ data: v, succ: false, mid: msg.mid, api: msg.api }, e); });
-            function http(url, method, data, headers) {
-                if (method === void 0) { method = "GET"; }
-                data = JSON.stringify(data);
-                return new Promise(function (res, rej) {
+            http(msg.data)
+                .then(v => post({ data: v, succ: true, mid: msg.mid, api: msg.api }, e))
+                .catch(v => post({ data: v, succ: false, mid: msg.mid, api: msg.api }, e));
+            function http(url) {
+                return new Promise((res, rej) => {
                     var xml = new XMLHttpRequest();
-                    xml.open(method, url, true);
+                    if (!url.method)
+                        url.method = "GET";
+                    var data = JSON.stringify(url.data);
+                    xml.open(url.method, getUrl(url), true);
                     xml.send(data);
-                    xml.addEventListener('loadend', function (v) {
-                        var suc = xml.status == 200 || xml.status == 403;
-                        v = parseJSON(xml.responseText);
-                        if (suc)
-                            res(v);
-                        else
-                            rej(v);
-                    });
-                    xml.addEventListener('error', function (v) {
-                        rej();
-                    });
+                    xml.addEventListener('loadend', v => res({ data: parseJSON(xml.response), code: xml.status }));
+                    xml.addEventListener('error', v => res({ data: void 0, code: 0 }));
                 });
             }
         }
@@ -201,42 +191,42 @@ var threading;
             post({ mid: msg.mid, succ: true, api: msg.api, data: loaded }, e);
         }
         function $return(succ, data, msg, e) {
-            post({ mid: msg.mid, succ: succ, api: msg.api, data: data }, e);
+            post({ mid: msg.mid, succ, api: msg.api, data: data }, e);
         }
         function $script(msg, e, post) {
-            var scr = document.createElement('script');
-            for (var n in msg.data)
+            const scr = document.createElement('script');
+            for (const n in msg.data)
                 scr.setAttribute(n, msg.data[n]);
             $window.document.head.append(scr);
-            scr.addEventListener('load', function (ex) {
+            scr.addEventListener('load', ex => {
                 $return(true, void 0, msg, e);
             });
-            scr.addEventListener('error', function (err) {
+            scr.addEventListener('error', err => {
                 $return(false, { lineno: err.lineno, colno: err.colno, message: err.message, filename: err.filename }, msg, e);
             });
         }
         return _localeThread = {
-            register: function (name, handler) {
+            register(name, handler) {
                 apis[name] = handler;
             },
-            unregister: function (name) {
-                var c = { name: name, handler: apis[name] };
+            unregister(name) {
+                let c = { name: name, handler: apis[name] };
                 delete apis[name];
                 return c;
             },
-            has: function (name) {
+            has(name) {
                 return name in apis;
             },
-            get: function (name) {
+            get(name) {
                 return apis[name];
             },
-            post: post,
+            post,
             return: $return,
         };
     }
     threading.createLocaleThread = createLocaleThread;
     function createHostThread(name, src) {
-        var frame = document.createElement('iframe');
+        const frame = document.createElement('iframe');
         frame.classList.add('thread');
         frame.src = src;
         document.body.append(frame);
@@ -244,8 +234,8 @@ var threading;
         frame.style.position = "fixed";
         frame.style.maxHeight = "0px";
         frame.style.maxWidth = "0px";
-        var thread = new threading.hostedThread(name);
-        frame.addEventListener('load', function (e) {
+        let thread = new threading.hostedThread(name);
+        frame.addEventListener('load', e => {
             thread.initialize(window, frame.contentWindow);
         });
         return thread;
@@ -254,8 +244,8 @@ var threading;
     function currentLocaleThread() { return _localeThread; }
     threading.currentLocaleThread = currentLocaleThread;
     function getHostedThreads() {
-        var p = {};
-        for (var n in _hostedThreads)
+        let p = {};
+        for (const n in _hostedThreads)
             p[n] = _hostedThreads[n];
         return p;
     }
